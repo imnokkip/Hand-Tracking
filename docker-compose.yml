@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  hand-tracking-api:
+    build: .
+    container_name: hand-tracking-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./img:/app/img
+      - ./result:/app/result
+    restart: unless-stopped
