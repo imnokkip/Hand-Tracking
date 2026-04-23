@@ -1,6 +1,8 @@
 from fastapi import APIRouter, UploadFile
+from fastapi.responses import FileResponse
 import cv2
 import mediapipe as mp
+import os
 
 
 
@@ -62,8 +64,21 @@ async def find_hands(file_path: str):
 
 @ROUTER.post("/IMG")
 async def upload_file(file: UploadFile):
+    allowed_mimes = {'image/png', 'image/jpeg', 'image/jpg'}
+    if file.content_type not in allowed_mimes:
+        return {"error": "Только PNG и JPEG изображения"}
+    allowed_extensions = {'.png', '.jpg', '.jpeg'}
+    file_extension = os.path.splitext(file.filename)[1].lower() 
+    if file_extension not in allowed_extensions:
+        return {"error": "Неподдерживаемое расширение файла"}
+    
     to_file(file)
     hands_cou = await find_hands(file.filename)
     print(type(hands_cou))
-    return {"msg": "ok",
-            "hands": hands_cou}
+    response = FileResponse(
+        path=f"result/{file.filename}", 
+        filename=file.filename
+    )
+    response.headers["X-Hands-Count"] = str(hands_cou)
+    response.headers["X-Message"] = "ok"
+    return response
