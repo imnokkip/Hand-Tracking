@@ -7,9 +7,15 @@ import os
 
 
 ROUTER = APIRouter(prefix="/API", tags=["Rooms"])
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODEL_PATH = os.path.join(BASE_DIR, "hand_landmarker.task")
+IMG_DIR = os.path.join(BASE_DIR, "img//")
+RESULT_DIR = os.path.join(BASE_DIR, "result//")
+
+print(BASE_DIR, MODEL_PATH, IMG_DIR, RESULT_DIR)
 
 def to_file(file):
-    with open("img/" + file.filename, "wb") as f:
+    with open(IMG_DIR + file.filename, "wb") as f:
         f.write(file.file.read())
 
 async def find_hands(file_path: str):
@@ -20,7 +26,7 @@ async def find_hands(file_path: str):
         VisionRunningMode = mp.tasks.vision.RunningMode
 
         options = HandLandmarkerOptions(
-            base_options=BaseOptions(model_asset_path="./hand_landmarker.task"),
+            base_options=BaseOptions(model_asset_path=MODEL_PATH),
             running_mode=VisionRunningMode.IMAGE,
             num_hands=10,
             min_hand_detection_confidence=0.5,
@@ -28,7 +34,7 @@ async def find_hands(file_path: str):
             min_tracking_confidence=0.5
         )
         detector = mp.tasks.vision.HandLandmarker.create_from_options(options)
-        img = cv2.imread("img/" + file_path)
+        img = cv2.imread(os.path.join(IMG_DIR, file_path))
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
         detection_result = detector.detect(mp_image)
@@ -58,8 +64,7 @@ async def find_hands(file_path: str):
     finally:
         if detector:
             detector.close()
-    print(f"Найдено рук: {len(detection_result.hand_landmarks) if detection_result.hand_landmarks else 0}")
-    cv2.imwrite("result/" + file_path, img)
+    cv2.imwrite(RESULT_DIR + file_path, img)
     return len(detection_result.hand_landmarks) if detection_result.hand_landmarks else 0
 
 @ROUTER.post("/IMG")
@@ -76,7 +81,7 @@ async def upload_file(file: UploadFile):
     hands_cou = await find_hands(file.filename)
     print(type(hands_cou))
     response = FileResponse(
-        path=f"result/{file.filename}", 
+        path=f"{RESULT_DIR}/{file.filename}", 
         filename=file.filename
     )
     response.headers["X-Hands-Count"] = str(hands_cou)
